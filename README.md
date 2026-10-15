@@ -2,20 +2,67 @@
 
 通过 codex-proxy 提供图片生成能力的 MCP 服务。
 
-## 安装
+## 给 AI 助手的说明
+
+如果用户把这个仓库地址给你，请按以下步骤自动完成安装和配置：
+
+1. **安装工具**（二选一）：
 
 ```bash
-pipx install codex-image-generator
+# 方式 A：uvx 免安装直接运行（推荐，需要 uv）
+uvx --from git+https://github.com/nameLogen/codex-image-generator.git codex-image-generator --print-config
+
+# 方式 B：pipx 安装到独立环境
+pipx install git+https://github.com/nameLogen/codex-image-generator.git
 ```
 
-## 发布
-
-开发者发布新版本到 PyPI 的步骤，见 [RELEASE.md](./RELEASE.md)。
-
-或者使用 uv：
+2. **确认环境变量**，向用户询问并协助设置：
 
 ```bash
-uvx codex-image-generator
+# 必填
+CODEX_PROXY_URL=http://<codex-proxy地址>:8080/v1
+CODEX_PROXY_API_KEY=<proxy的apikey>
+
+# 可选，默认 gpt-6.1-sol
+CODEX_PROXY_MODEL=gpt-6.1-sol
+```
+
+3. **写入 Codex MCP 配置**：
+
+```bash
+codex-image-generator --write-config
+```
+
+如果用户没有安装命令（方式 A 场景），直接在 `~/.codex/config.toml` 追加：
+
+```toml
+[mcp_servers.image_generator]
+type = "stdio"
+command = 'uvx'
+args = ['--from', 'git+https://github.com/nameLogen/codex-image-generator.git', 'codex-image-generator']
+startup_timeout_sec = 120
+```
+
+4. **提醒用户重启 Codex**，之后在对话中说「生成一张 xxx 图片」即可使用。
+
+## 升级
+
+```bash
+# pipx 安装的升级方式
+pipx upgrade codex-image-generator
+
+# 或者强制重装最新代码
+pipx install --force git+https://github.com/nameLogen/codex-image-generator.git
+```
+
+uvx 方式每次都拉取最新代码，无需手动升级。
+
+## 手动安装
+
+```bash
+git clone https://github.com/nameLogen/codex-image-generator.git
+cd codex-image-generator
+python -m pip install -e .
 ```
 
 ## 配置
@@ -40,8 +87,6 @@ export CODEX_PROXY_MODEL=gpt-6.1-sol
 ```bash
 codex-image-generator --write-config
 ```
-
-这会向 `~/.codex/config.toml` 追加 MCP 服务配置。
 
 ## 手动配置
 
@@ -72,3 +117,7 @@ startup_timeout_sec = 120
 - `prompt`（必填）：图片生成提示词
 - `size`（可选）：图片尺寸，默认 `1024x1024`
 - `output_path`（可选）：输出路径，默认 `output.png`
+
+## 发布
+
+开发者发布新版本到 PyPI 的步骤，见 [RELEASE.md](./RELEASE.md)。
