@@ -117,6 +117,19 @@ startup_timeout_sec = 120
 - `prompt`（必填）：图片生成提示词
 - `size`（可选）：图片尺寸，默认 `1024x1024`
 - `output_path`（可选）：输出路径，默认 `output.png`
+- `reference_image_paths`（可选）：本地参考图路径列表，支持 PNG、JPEG、WebP 和非动画 GIF，可传入多张图片
+
+例如，参考一张图片的风格和另一张图片的构图：
+
+```json
+{
+  "prompt": "参考第一张图的绘画风格和第二张图的构图，生成一张海边灯塔插画",
+  "reference_image_paths": ["C:/Pictures/style.png", "C:/Pictures/composition.jpg"],
+  "output_path": "C:/Pictures/lighthouse.png"
+}
+```
+
+参考图必须在 MCP 服务所在机器上可读取，建议使用绝对路径；相对路径以服务进程的工作目录为基准。图片会被读取并以 Base64 数据随请求发送给 codex-proxy，需要代理及上游模型支持 Responses API 的 `input_image` 输入，格式参见 [OpenAI 官方图片生成文档](https://developers.openai.com/api/docs/guides/image-generation)。不传此参数时仍按原来的方式生成图片。
 
 ## 发布
 

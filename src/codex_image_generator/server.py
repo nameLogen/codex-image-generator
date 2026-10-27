@@ -47,14 +47,47 @@ def get_model():
     return os.environ.get("CODEX_PROXY_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 
-def generate_image(prompt: str, size: str = "1024x1024", output_path: str = "output.png"):
+def generate_image(
+    prompt: str,
+    size: str = "1024x1024",
+    output_path: str = "output.png",
+    reference_image_paths: list[str] | None = None,
+):
     base_url, api_key = get_proxy_config()
     url = f"{base_url}/responses"
+
+    content = prompt
+    if reference_image_paths is not None and not isinstance(reference_image_paths, list):
+        raise ValueError("reference_image_paths 必须是本地图片路径列表")
+    if reference_image_paths:
+        content = [{"type": "input_text", "text": prompt}]
+        mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+        }
+        for image_path in reference_image_paths:
+            if not isinstance(image_path, str) or not image_path.strip():
+                raise ValueError("参考图路径必须是非空字符串")
+            path = Path(image_path).expanduser()
+            mime_type = mime_types.get(path.suffix.lower())
+            if mime_type is None:
+                raise ValueError(f"不支持的参考图格式: {path}，请使用 PNG、JPEG、WebP 或非动画 GIF")
+            image_bytes = path.read_bytes()
+            if not image_bytes:
+                raise ValueError(f"参考图文件为空: {path}")
+            encoded_image = base64.b64encode(image_bytes).decode("ascii")
+            content.append({
+                "type": "input_image",
+                "image_url": f"data:{mime_type};base64,{encoded_image}",
+            })
 
     payload = {
         "model": get_model(),
         "stream": True,
-        "input": [{"role": "user", "content": prompt}],
+        "input": [{"role": "user", "content": content}],
         "tools": [{"type": "image_generation", "size": size}],
     }
 
@@ -159,7 +192,7 @@ async def list_tools():
     return [
         Tool(
             name="generate_image",
-            description="通过 codex-proxy 生成图片并保存到本地文件",
+            description="通过 codex-proxy 生成图片并保存到本地文件，可传入本地图片作为参考",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -177,6 +210,11 @@ async def list_tools():
                         "description": "输出图片路径，默认 output.png",
                         "default": "output.png",
                     },
+                    "reference_image_paths": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 1},
+                        "description": "可选的本地参考图路径列表，建议使用绝对路径；支持 PNG、JPEG、WebP 和非动画 GIF。图片必须在 MCP 服务所在机器上可读取",
+                    },
                 },
                 "required": ["prompt"],
             },
@@ -192,8 +230,11 @@ async def call_tool(name: str, arguments: dict):
     prompt = arguments["prompt"]
     size = arguments.get("size", "1024x1024")
     output_path = arguments.get("output_path", "output.png")
+    reference_image_paths = arguments.get("reference_image_paths")
 
-    saved_path, revised_prompt = generate_image(prompt, size, output_path)
+    saved_path, revised_prompt = generate_image(
+        prompt, size, output_path, reference_image_paths=reference_image_paths
+    )
 
     return [
         TextContent(
